@@ -1,43 +1,76 @@
 package SeriousAssigments;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.text.*;
 import java.util.*;
 
 public class Assigment {
+    static private DateFormat dateFormat = new SimpleDateFormat("dd/MMM/yyyy:HH:mm:ss Z", Locale.ENGLISH);
+
     public static void main(String[] args) throws Exception {
-        File fileToRead = new File("C:\\Users\\Alex\\IdeaProjects\\JavaStudy\\src\\log.log");
+        String filePath = "." + File.separator + "src" + File.separator + "log.log";
+        File fileToRead = new File(filePath);
+        String targetDate = "27/Dec/2015:14:18:20 +0100";
+        Date staticDate =  dateFormat.parse(targetDate);
 
         try(RandomAccessFile file = new RandomAccessFile(fileToRead, "r")) {
-            int fileLength = (int) file.length();
-
-            while (strDateParser(file.readLine())){
-                file.seek(fileLength/2 - 1);
-                int count = 0;
-
-                while (file.read() != '\n') {
-                    file.seek(fileLength/2 - 1 + count);
-                    count--;
+            long fileSize = file.length();
+            long left = 0L;
+            long right = file.length();
+            while (left < right) {
+                long middle = left + (right - left) / 2;
+                long lineStart = getLineStart(file, middle, left);
+                long lineEnd = getLineEnd(file, middle, right);
+                file.seek(lineStart);
+                byte[] buffer = new byte[(int) (lineEnd - lineStart)];
+                file.read(buffer);
+                String line = new String(buffer, StandardCharsets.US_ASCII);
+                Date date = strDateParser(line);
+                if (date.compareTo(staticDate) < 0) {
+                    left = lineEnd + 1;
+                } else {
+                    right = lineStart - 1;
                 }
             }
-
-
-            for(String line; (line = file.readLine()) != null; ) {
-                    System.out.println(line);
+            if (left < fileSize) {
+                byte[] buffer = new byte[4096];
+                file.seek(left);
+                for (int i = 0; i >= 0; i = file.read(buffer)) {
+                    System.out.print(new String(buffer, 0, i, StandardCharsets.US_ASCII));
+                }
             }
         }
     }
 
-    private static boolean strDateParser(String str) throws Exception {
+    private static long getLineEnd(RandomAccessFile file, long middle, long right) throws IOException {
+        long pos = middle;
+        file.seek(pos);
+        while (pos < right) {
+            if (file.readByte() == '\n') {
+                return pos;
+            };
+            pos++;
+        }
+        return right;
+    }
+
+    private static long getLineStart(RandomAccessFile file, long middle, long left) throws IOException {
+        long pos = middle;
+        while (pos >= left) {
+            file.seek(pos);
+            if (file.readByte() == '\n') {
+                return pos;
+            };
+            pos--;
+        }
+        return left;
+    }
+
+    private static Date strDateParser(String str) throws Exception {
         String dateFromStr = str.substring(str.indexOf("[") + 1, str.indexOf("]"));
-        DateFormat dateFormat = new SimpleDateFormat("dd/MMM/yyyy:HH:mm:ss Z", Locale.ENGLISH);
         Date parsedDate =  dateFormat.parse(dateFromStr);
-
-        String targetDate = "27/Dec/2015:14:18:20 +0100";
-        Date staticDate =  dateFormat.parse(targetDate);
-
-
-        return parsedDate.compareTo(staticDate) > 0;
+        return parsedDate;
     }
 
     public static int binarySearch(int[] arr, int x) {
