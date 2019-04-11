@@ -4,14 +4,33 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.text.*;
 import java.util.*;
+import java.util.regex.*;
 
 public class Assigment {
-    static private DateFormat dateFormat = new SimpleDateFormat("dd/MMM/yyyy:HH:mm:ss Z", Locale.ENGLISH);
+    private String filename;
+    private DateFormat dateFormat; // = new SimpleDateFormat("dd/MMM/yyyy:HH:mm:ss Z", Locale.ENGLISH);
+    private String regex; // = "^(?:[^\\s]+\\s){3}\\[([^\\]]+)\\].*$";
+    private String targetDate;
 
-    public static void main(String[] args) throws Exception {
-        String filePath = "." + File.separator + "src" + File.separator + "log.log";
-        File fileToRead = new File(filePath);
-        String targetDate = "27/Dec/2015:14:18:20 +0100";
+    private Assigment(String[] args) {
+        filename = args[0];
+        dateFormat = new SimpleDateFormat(args[1], Locale.ENGLISH);
+        targetDate = args[3];
+        regex = args[2];
+    }
+
+    private void run() throws Exception {
+        File fileToRead = new File(filename);
+
+        if (fileToRead.exists()) {
+            fileToRead = fileToRead.getCanonicalFile();
+        }
+
+        else {
+            System.out.println("Something is wrong with the file.");
+            throw new IOException();
+        }
+
         Date staticDate =  dateFormat.parse(targetDate);
 
         try(RandomAccessFile file = new RandomAccessFile(fileToRead, "r")) {
@@ -41,57 +60,50 @@ public class Assigment {
                 }
             }
         }
+
     }
 
-    private static long getLineEnd(RandomAccessFile file, long middle, long right) throws IOException {
+    private long getLineEnd(RandomAccessFile file, long middle, long right) throws IOException {
         long pos = middle;
         file.seek(pos);
         while (pos < right) {
             if (file.readByte() == '\n') {
                 return pos;
-            };
+            }
             pos++;
         }
         return right;
     }
 
-    private static long getLineStart(RandomAccessFile file, long middle, long left) throws IOException {
+    private long getLineStart(RandomAccessFile file, long middle, long left) throws IOException {
         long pos = middle;
         while (pos >= left) {
             file.seek(pos);
             if (file.readByte() == '\n') {
                 return pos;
-            };
+            }
             pos--;
         }
         return left;
     }
 
-    private static Date strDateParser(String str) throws Exception {
-        String dateFromStr = str.substring(str.indexOf("[") + 1, str.indexOf("]"));
-        Date parsedDate =  dateFormat.parse(dateFromStr);
-        return parsedDate;
-    }
-
-    public static int binarySearch(int[] arr, int x) {
-        int left = 0, right = arr.length - 1;
-
-        while (left <= right) {
-            int middle = left + (right - left) / 2;
-
-            if (arr[middle] == x) {
-                return middle;
-            }
-
-            if (arr[middle] < x) {
-                left = middle + 1;
-            }
-
-            else {
-                right = middle - 1;
-            }
+    private Date strDateParser(String str) throws Exception {
+        String dateFromStr;
+        Pattern pattern = Pattern.compile(regex);
+        try {
+            Matcher matcher = pattern.matcher(str);
+            dateFromStr = matcher.group();
+        }
+        catch (IllegalStateException e) {
+            System.out.println("String does not match pattern.");
+            throw e;
         }
 
-        return -1;
+        return dateFormat.parse(dateFromStr);
+    }
+
+    public static void main(String[] args) throws Exception {
+        Assigment assigment = new Assigment(args);
+        assigment.run();
     }
 }
